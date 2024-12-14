@@ -131,4 +131,69 @@ const isInBounds = (p: Point, graph: string[]) => {
   return isXInBounds && isYInBounds;
 };
 
-console.log(await part1());
+const simulate = (
+  input: string[],
+  coordinates: Coordinates,
+  startingPoint: Point,
+) => {
+  const visitedPosition: Set<string> = new Set();
+  visitedPosition.add(`${startingPoint.x},${startingPoint.y},UP`);
+
+  const guard: Guard = {
+    position: startingPoint,
+    direction: "UP",
+  };
+
+  while (isInBounds(guard.position, input)) {
+    const nextPos = getNextPos(guard);
+    if (!isInBounds(nextPos, input)) {
+      break;
+    }
+    const graphP = coordinates[`${nextPos.x},${nextPos.y}`];
+    if (visitedPosition.has(`${graphP.x},${graphP.y},${guard.direction}`)) {
+      return true;
+    }
+
+    if (graphP.hasObstable) {
+      const newDirection: string = changeDirection(guard);
+      guard.direction = newDirection;
+      if (visitedPosition.has(`${graphP.x},${graphP.y},${guard.direction}`)) {
+        return true;
+      }
+      visitedPosition.add(
+        `${guard.position.x},${guard.position.y},${guard.direction}`,
+      );
+    } else {
+      guard.position = graphP;
+      visitedPosition.add(
+        `${guard.position.x},${guard.position.y},${guard.direction}`,
+      );
+    }
+  }
+  return false;
+};
+
+const part2 = async () => {
+  const text: string[] = await getInputLineByLine("input.txt");
+  const [coordinates, startingPoint] = getCoord(text);
+  let answer = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    for (let j = 0; j < text[0].length; j++) {
+      const p = coordinates[`${j},${i}`];
+      if (!p.hasObstable && p !== startingPoint) {
+        p.hasObstable = true;
+        const simulation = simulate(text, coordinates, startingPoint);
+        if (simulation) {
+          answer += 1;
+        }
+        p.hasObstable = false;
+      }
+    }
+  }
+
+  return answer;
+};
+
+// console.log(await part1());
+console.log(await part2());
