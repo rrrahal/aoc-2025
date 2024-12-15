@@ -5,6 +5,12 @@ type Node = {
   value: number;
 };
 
+type SimpleNode = {
+  children: number[];
+  value: number;
+};
+
+type Deps = Record<number, SimpleNode>;
 type RefTable = Record<number, Node>;
 
 export const part1 = async () => {
@@ -118,23 +124,75 @@ const fixArray = (badArray: number[], graph: RefTable) => {
   }, badArray);
 };
 
-const fixArraysOuter = (badArrays: number[][], graph: RefTable) => {
-  const fixedArray: number[][] = [];
-  while (badArrays.length > 0) {
-    badArrays.forEach((arr, index) => {
-      const fixed = fixArray(arr, graph);
-      const isGood = fixed.every((value, index) =>
-        dfs(graph[value], fixed.slice(0, index), fixed),
-      );
+const makeDepGraph = (rules: number[][]) => {
+  const deps: Deps = {};
 
-      if (isGood) {
-        badArrays.splice(index, 1);
-        fixedArray.push(fixed);
+  rules.forEach((rule) => {
+    const after = rule[1];
+    const before = rule[0];
+
+    if (deps[after]) {
+      deps[after].children.push(before);
+    } else {
+      deps[after] = {
+        children: [before],
+        value: after,
+      };
+    }
+
+    if (!deps[before]) {
+      deps[before] = {
+        children: [],
+        value: before,
+      };
+    }
+  });
+
+  return deps;
+};
+
+const isWrong = (array: number[], depGraph: Deps) => {
+  const inArray = new Set(array);
+  const seen = new Set();
+
+  return array.some((el) => {
+    const deps = depGraph[el].children.filter((c) => inArray.has(c));
+    const cond = deps.some((d) => !seen.has(d));
+    if (cond) {
+      return true;
+    }
+    seen.add(el);
+    return false;
+  });
+};
+
+const sort = (array: number[], depGraph: Deps) => {
+  const seen = new Set();
+  const inArray = new Set(array);
+
+  const sortedArray: number[] = [];
+
+  const toBeAdded: SimpleNode[] = array.map((el) => {
+    const relevantDeps = depGraph[el].children.filter((d) => inArray.has(d));
+    return {
+      children: relevantDeps,
+      value: el,
+    };
+  });
+  while (toBeAdded.length !== sortedArray.length) {
+    for (let i = 0; i < toBeAdded.length; i++) {
+      const element = toBeAdded[i];
+      if (seen.has(element.value)) {
+        continue;
       }
-    });
+      if (element.children.every((c) => seen.has(c))) {
+        sortedArray.push(element.value);
+        seen.add(element.value);
+        break;
+      }
+    }
   }
-
-  return fixedArray;
+  return sortedArray;
 };
 
 const part2 = async () => {
@@ -148,29 +206,17 @@ const part2 = async () => {
     .map((line) => line.map((val) => parseInt(val)));
 
   const deps = rules.map((rule) => rule.split("|").map((n) => parseInt(n)));
-  const graph = createDepGraph(deps);
+  const depGraph = makeDepGraph(deps);
+  const wrongs = updates.filter((u) => isWrong(u, depGraph));
+  const sorted = wrongs.map((u) => sort(u, depGraph));
 
-  const badArrays = updates.reduce((acc, update) => {
-    const isGood = update.every((value, index) =>
-      dfs(graph[value], update.slice(0, index), update),
-    );
-
-    if (isGood) {
-      return acc;
-    }
-    return [...acc, update];
-  }, [] as number[][]);
-
-  const fixed = fixArraysOuter(badArrays, graph);
-  console.log(badArrays, fixed);
-
-  const answer = fixed.reduce((acc, arr) => {
+  const answer = sorted.reduce((acc, arr) => {
     const len = Math.floor(arr.length / 2);
 
     return acc + arr[len];
   }, 0);
 
-  console.log(answer);
+  return answer;
 };
 
 // console.log(await part1());
