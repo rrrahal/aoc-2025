@@ -48,22 +48,7 @@ export const part1 = async () => {
   }
 
   fillScores(startingPos, dp, text);
-
-  dp.forEach((row) => {
-    console.log(
-      row
-        .map((r) => {
-          if (r.value === Infinity) {
-            return "  + ";
-          }
-          if (r.value < 1000) {
-            return `000${r.value}`;
-          }
-          return r.value;
-        })
-        .join(" "),
-    );
-  });
+  printDp(dp);
 
   return dp[endPos.i][endPos.j];
 };
@@ -76,48 +61,48 @@ const fillScores = (starting: Pos, dp: Score[][], grid: string[]) => {
 
   const visited = new Set<string>();
   const queue = [startingPos] as Neighboor[];
-  let i = 0;
 
   while (queue.length > 0) {
-    i++;
     const currentNode = queue.shift();
     if (!currentNode) {
       return dp;
     }
     const currentCoord = currentNode.coord;
+    const currentScore = dp[currentCoord[0]][currentCoord[1]];
     const neighbors = getNeighbors(...currentNode.coord, grid).filter(
-      (n) => !visited.has(`${n.coord[0]},${n.coord[1]},${n.dir}`),
+      (n) =>
+        !visited.has(
+          `${currentScore.value},${n.coord[0]},${n.coord[1]},${n.dir}`,
+        ),
     );
-
-    visited.add(`${currentCoord[0]},${currentCoord[1]},${currentNode.dir}`);
 
     neighbors.forEach((n) => {
       const nCoord = n.coord;
-
-      let currentDp = { ...dp[currentCoord[0]][currentCoord[1]] };
-      const newDp = dp[nCoord[0]][nCoord[1]];
-      if (visited.has(`${nCoord[0]},${nCoord[1]},${n.dir}`)) {
-        return;
+      const neighboorScore = dp[nCoord[0]][nCoord[1]];
+      if (neighboorScore.value !== Infinity) {
+        visited.add(
+          `${currentScore.value},${n.coord[0]},${n.coord[1]},${n.dir}`,
+        );
       }
-      visited.add(`${nCoord[0]},${nCoord[1]},${n.dir}`);
 
-      if (currentDp.dir !== currentNode.dir) {
-        if (isOposite(currentDp.dir, currentNode.dir)) {
-          currentDp.value += 2000;
-        } else {
-          currentDp.value += 1000;
+      if (currentScore.dir === n.dir) {
+        if (neighboorScore.value > currentScore.value + 1) {
+          neighboorScore.value = currentScore.value + 1;
+          neighboorScore.dir = n.dir;
+        }
+      } else if (isOposite(currentScore.dir, n.dir)) {
+        if (neighboorScore.value > currentScore.value + 1 + 2000) {
+          neighboorScore.value = currentScore.value + 1 + 2000;
+          neighboorScore.dir = n.dir;
+        }
+      } else {
+        if (neighboorScore.value > currentScore.value + 1 + 1000) {
+          neighboorScore.value = currentScore.value + 1 + 1000;
+          neighboorScore.dir = n.dir;
         }
       }
-
-      const newValue = currentDp.value + 1;
-      if (newValue < newDp.value) {
-        newDp.value = newValue;
-        newDp.dir = currentNode.dir;
-      }
     });
-    if (i < 30) {
-      printDp(dp);
-    }
+    // printDp(dp);
     queue.push(...neighbors);
   }
 };
