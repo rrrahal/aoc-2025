@@ -174,4 +174,77 @@ const infScore = () => ({
   dir: Direction.ANY,
 });
 
+const part2 = async () => {
+  const text: string[] = await getInputLineByLine("example.txt");
+  const dp: Score[][] = [];
+  let startingPos: Pos = { i: 0, j: 0 };
+  let endPos: Pos = { i: 0, j: 0 };
+
+  for (let i = 0; i < text.length; i++) {
+    dp.push([] as Score[]);
+    for (let j = 0; j < text[0].length; j++) {
+      if (text[i][j] === "S") {
+        dp[i].push({ value: 0, dir: Direction.RIGHT });
+        startingPos.i = i;
+        startingPos.j = j;
+      } else {
+        dp[i].push(infScore());
+      }
+
+      if (text[i][j] === "E") {
+        endPos.i = i;
+        endPos.j = j;
+      }
+    }
+  }
+
+  fillScores(startingPos, dp, text);
+  const maxValue = dp[endPos.i][endPos.j].value;
+  const answer = text.map((t) => Array.from(t));
+  dfs(
+    { coord: [startingPos.i, startingPos.j], dir: Direction.RIGHT },
+    text,
+    dp,
+    maxValue,
+    new Set<string>(),
+    answer,
+  );
+  answer.forEach((r) => console.log(r.join("")));
+};
+
+const dfs = (
+  node: Neighboor,
+  grid: string[],
+  scores: Score[][],
+  maxValue: number,
+  seen: Set<string>,
+  answer: string[][],
+) => {
+  console.log(node);
+  seen.add(`${node.coord[0]},${node.coord[1]}`);
+  if (scores[node.coord[0]][node.coord[1]].value > maxValue) {
+    answer[node.coord[0]][node.coord[1]] = "#";
+    return false;
+  }
+
+  if (scores[node.coord[0]][node.coord[1]].value === maxValue) {
+    return true;
+  }
+  const neighbors = getNeighbors(node.coord[0], node.coord[1], grid).filter(
+    (n) => !seen.has(`${n.coord[0]},${n.coord[1]}`),
+  );
+  console.log(neighbors);
+
+  if (neighbors.length === 0) {
+    answer[node.coord[0]][node.coord[1]] = "#";
+    return false;
+  }
+
+  // if (neighbors.every((n) => !dfs(n, grid, scores, maxValue, seen, answer))) {
+  //   answer[node.coord[0]][node.coord[1]] = "#";
+  //   return false;
+  // }
+  return true;
+};
 console.log(await part1());
+// console.log(await part2());
