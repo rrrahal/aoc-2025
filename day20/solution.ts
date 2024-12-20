@@ -18,20 +18,26 @@ export const part1 = async () => {
   }
 
   const cheating: number[] = [];
+
   const maxTime = search(grid, startingPos, endPos);
   console.log(maxTime);
-  for (let i = 0; i < input.length; i++) {
-    for (let j = 0; j < input[0].length; j++) {
-      const newGrid = changeGrid(grid, i, j);
-
-      const v = search(newGrid, startingPos, endPos);
-      if (v) {
-        cheating.push(v);
-      }
-    }
+  for (let i = 0; i <= maxTime; i++) {
+    const res = search(grid, startingPos, endPos, i);
+    cheating.push(res);
   }
 
-  console.log(cheating.filter((c) => c === 20).length);
+  const debug = {};
+  cheating
+    .filter((c) => c !== maxTime)
+    .forEach((c) => {
+      if (debug[maxTime - c]) {
+        debug[maxTime - c] += 1;
+      } else {
+        debug[maxTime - c] = 1;
+      }
+    });
+
+  console.log(debug, cheating);
 };
 
 const printGrid = (grid: string[][]) => {
@@ -40,24 +46,12 @@ const printGrid = (grid: string[][]) => {
   });
 };
 
-const changeGrid = (grid: string[][], i: number, j: number) => {
-  const newGrid = grid.map((m) => [...m]);
-
-  for (let a = -2; a < 3; a++) {
-    try {
-      newGrid[i + a][j] = ".";
-    } catch (e) {}
-  }
-  for (let b = -2; b < 3; b++) {
-    try {
-      newGrid[i][j + b] = ".";
-    } catch (e) {}
-  }
-
-  return newGrid;
-};
-
-const search = (grid: string[][], start: number[], end: number[]) => {
+const search = (
+  grid: string[][],
+  start: number[],
+  end: number[],
+  cheat: number = -5,
+) => {
   const seen: Set<string> = new Set();
   const q: number[][] = [[...start, 0]];
 
@@ -66,13 +60,17 @@ const search = (grid: string[][], start: number[], end: number[]) => {
     if (!node) {
       continue;
     }
-    if (!isNode(node[0], node[1], grid)) {
+    if (!isNode(node[0], node[1], grid, node[2] === cheat + 1)) {
       continue;
     }
 
     if (seen.has(`${node[0]},${node[1]}`)) {
       continue;
     }
+    if (node[2] === cheat + 2 && grid[node[0]][node[1]] !== ".") {
+      continue;
+    }
+
     if (node[0] === end[0] && node[1] === end[1]) {
       return node[2];
     }
@@ -86,6 +84,8 @@ const search = (grid: string[][], start: number[], end: number[]) => {
 
     q.push(...neighbors);
   }
+
+  return -1;
 };
 
 const isNode = (
