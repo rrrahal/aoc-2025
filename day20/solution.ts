@@ -16,28 +16,20 @@ export const part1 = async () => {
       }
     }
   }
+  const [map, points] = makeMap(grid, startingPos, endPos);
+  const maxDis = points[points.length - 1][2];
+  console.log(">>>", points);
 
   const cheating: number[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const dist =
+      maxDis - (points[i][2] - points[getCheated(grid, points[i], map)][2]);
 
-  const maxTime = search(grid, startingPos, endPos);
-  console.log(maxTime);
-  for (let i = 0; i <= maxTime; i++) {
-    const res = search(grid, startingPos, endPos, i);
-    cheating.push(res);
+    cheating.push(dist);
   }
 
-  const debug = {};
-  cheating
-    .filter((c) => c !== maxTime)
-    .forEach((c) => {
-      if (debug[maxTime - c]) {
-        debug[maxTime - c] += 1;
-      } else {
-        debug[maxTime - c] = 1;
-      }
-    });
-
-  console.log(debug, cheating);
+  console.log(cheating);
+  console.log(getCheated(grid, [2, 1], map));
 };
 
 const printGrid = (grid: string[][]) => {
@@ -46,46 +38,68 @@ const printGrid = (grid: string[][]) => {
   });
 };
 
-const search = (
+const makeMap = (
   grid: string[][],
   start: number[],
   end: number[],
-  cheat: number = -5,
-) => {
+): [Map<string, number>, number[][]] => {
   const seen: Set<string> = new Set();
   const q: number[][] = [[...start, 0]];
+  let map: Map<string, number> = new Map();
+  const points: number[][] = [];
 
   while (q.length > 0) {
     const node = q.shift();
     if (!node) {
       continue;
     }
-    if (!isNode(node[0], node[1], grid, node[2] === cheat + 1)) {
-      continue;
-    }
-
     if (seen.has(`${node[0]},${node[1]}`)) {
-      continue;
-    }
-    if (node[2] === cheat + 2 && grid[node[0]][node[1]] !== ".") {
       continue;
     }
 
     if (node[0] === end[0] && node[1] === end[1]) {
-      return node[2];
+      map.set(`${node[0]},${node[1]}`, node[2]);
+      points.push(node);
+      return [map, points];
     }
 
     seen.add(`${node[0]},${node[1]}`);
-
-    const neighbors = getNeighbors(node[0], node[1]).map((n) => [
-      ...n,
-      node[2] + 1,
-    ]);
+    map.set(`${node[0]},${node[1]}`, node[2]);
+    points.push(node);
+    const neighbors = getNeighbors(node[0], node[1])
+      .filter((n) => isNode(n[0], n[1], grid))
+      .map((n) => [...n, node[2] + 1]);
 
     q.push(...neighbors);
   }
 
-  return -1;
+  return [map, points];
+};
+
+const getCheated = (
+  grid: string[][],
+  start: number[],
+  map: Map<string, number>,
+) => {
+  const neighbors = getNeighbors(start[0], start[1]).filter((n) =>
+    isNode(n[0], n[1], grid, true),
+  );
+
+  const finalPos = neighbors
+    .map((n) => {
+      const nei = getNeighbors(n[0], n[1]).filter((final) =>
+        isNode(final[0], final[1], grid),
+      );
+      return nei;
+    })
+    .flat();
+
+  return finalPos.reduce((acc, pos) => {
+    if (map.get(`${pos[0]},${pos[1]}`) === undefined) {
+      return acc;
+    }
+    return Math.max(acc, map.get(`${pos[0]},${pos[1]}`));
+  }, -1);
 };
 
 const isNode = (
@@ -96,6 +110,9 @@ const isNode = (
 ) => {
   try {
     const el = grid[i][j];
+    if (el === undefined) {
+      return false;
+    }
     if (cheat) {
       return true;
     }

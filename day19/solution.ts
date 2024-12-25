@@ -5,31 +5,25 @@ export const part1 = async () => {
   const [colorsOptions, list] = input.split("\n\n");
   const colors = colorsOptions.split(", ");
   const options = list.split("\n").filter((o) => o !== "");
-
-  return options.filter((o, i) => {
-    console.log(">", i, options.length);
-    return matchDesign(o, colors);
-  }).length;
+  return options.filter((o) => match(o, colors) > 0).length;
 };
 
-const matchDesign = (s: string, colors: string[]) => {
-  if (s === "") {
-    return true;
-  }
-
-  if (s.length === 1) {
-    return colors.filter((color) => color === s);
-  }
-
-  const answer = colors.some((c) => {
-    if (s.startsWith(c)) {
-      return matchDesign(s.slice(c.length), colors);
+const cache = {};
+const match = (s: string, colors: string[]) => {
+  console.log(s);
+  if (!cache[s]) {
+    if (s.length === 0) {
+      return 1;
     }
-
-    return false;
-  });
-
-  return answer;
+    let result = 0;
+    for (let j = 0; j < colors.length; j++) {
+      if (s.startsWith(colors[j])) {
+        result += match(s.slice(colors[j].length), colors);
+      }
+    }
+    cache[s] = result;
+  }
+  return cache[s];
 };
 
 console.log(await part1());
