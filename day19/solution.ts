@@ -5,25 +5,69 @@ export const part1 = async () => {
   const [colorsOptions, list] = input.split("\n\n");
   const colors = colorsOptions.split(", ");
   const options = list.split("\n").filter((o) => o !== "");
-  return options.filter((o) => match(o, colors) > 0).length;
-};
 
-const cache = {};
-const match = (s: string, colors: string[]) => {
-  console.log(s);
-  if (!cache[s]) {
-    if (s.length === 0) {
+  const cache: Map<string, number> = new Map();
+
+  const match = (s: string | undefined) => {
+    if (!s) {
       return 1;
     }
-    let result = 0;
-    for (let j = 0; j < colors.length; j++) {
-      if (s.startsWith(colors[j])) {
-        result += match(s.slice(colors[j].length), colors);
+    if (cache.has(s)) {
+      return cache.get(s)!;
+    }
+    let res = 0;
+    for (const color of colors) {
+      if (s.startsWith(color)) {
+        res += match(s.substring(color.length));
       }
     }
-    cache[s] = result;
-  }
-  return cache[s];
+    cache.set(s, res);
+    return res;
+  };
+
+  return options.reduce((acc, o) => {
+    if (match(o)) {
+      return acc + 1;
+    }
+
+    return acc;
+  }, 0);
 };
 
-console.log(await part1());
+export const part2 = async () => {
+  const input: string = await readInput("input.txt");
+  const [colorsOptions, list] = input.split("\n\n");
+  const colors = colorsOptions.split(", ");
+  const options = list.split("\n").filter((o) => o !== "");
+
+  const cache: Map<string, number> = new Map();
+
+  const match = (s: string | undefined) => {
+    if (!s) {
+      return 1;
+    }
+    if (cache.has(s)) {
+      return cache.get(s)!;
+    }
+    let res = 0;
+    for (const color of colors) {
+      if (s.startsWith(color)) {
+        res += match(s.substring(color.length));
+      }
+    }
+    cache.set(s, res);
+    return res;
+  };
+
+  return options.reduce((acc, o) => {
+    const v = match(o);
+    if (match(o)) {
+      return acc + v;
+    }
+
+    return acc;
+  }, 0);
+};
+
+// console.log(await part1());
+console.log(await part2());
