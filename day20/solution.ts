@@ -163,10 +163,74 @@ export const part2 = async () => {
   raceTrackWay.forEach((pos, index) => {
     distances.set(`${pos}`, index);
   });
+  const possibleEnds = raceTrackWay.map((n) => getPossibleEnds(n, grid));
+  const times = possibleEnds
+    .map((end, i) => calcTime(end, raceTrackWay[i], distances))
+    .flat();
+  // should be 285
+  console.log(times.filter((t) => t > 50).length);
+
   // given all the points in the path
   // find all the reacheble point within 20s and their distance
   // calculate how many time we saved for each of them
 };
+
+const calcTime = (
+  points: [number[], number][],
+  originalPos: number[],
+  distances: Map<string, number>,
+) => {
+  return points
+    .map((p) => {
+      const [node, dist] = p;
+      const originalTime = distances.get(`${originalPos}`)! + dist;
+      const newTime = distances.get(`${node}`)!;
+      return newTime - originalTime;
+    })
+    .filter((t) => t > 0);
+};
+
+const getPossibleEnds = (start: number[], grid: string[][]) => {
+  const seen: Set<string> = new Set();
+  const q: [number[], number][] = [[start, 0]];
+  const results: [number[], number][] = [];
+  while (q.length) {
+    const [node, dist] = q.shift()!;
+    if (dist > 20) {
+      continue;
+    }
+
+    if (isNode(node[0], node[1], grid)) {
+      results.push([node, dist]);
+    }
+    if (seen.has(`${node}`)) {
+      continue;
+    }
+
+    seen.add(`${node}`);
+    const nei = getNeighbors(node[0], node[1]).filter((n) =>
+      isNode(n[0], n[1], grid, true),
+    );
+
+    q.push(...nei.map((n) => [n, dist + 1] as [number[], number]));
+  }
+
+  return removeDuplicates(
+    results.filter(([n, _]) => isNode(n[0], n[1], grid, false)),
+    (item) => JSON.stringify(item[0]),
+  );
+};
+function removeDuplicates<T>(array: T[], keyFn: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  return array.filter((item) => {
+    const key = keyFn(item);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
 
 // console.log(await part1());
 console.log(await part2());
