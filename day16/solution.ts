@@ -24,7 +24,7 @@ type Neighboor = {
 };
 
 export const part1 = async () => {
-  const text: string[] = await getInputLineByLine("example.txt");
+  const text: string[] = await getInputLineByLine("input.txt");
   const dp: Score[][] = [];
   let startingPos: Pos = { i: 0, j: 0 };
   let endPos: Pos = { i: 0, j: 0 };
@@ -102,7 +102,6 @@ const fillScores = (starting: Pos, dp: Score[][], grid: string[]) => {
         }
       }
     });
-    // printDp(dp);
     queue.push(...neighbors);
   }
 };
@@ -175,7 +174,7 @@ const infScore = () => ({
 });
 
 const part2 = async () => {
-  const text: string[] = await getInputLineByLine("example.txt");
+  const text: string[] = await getInputLineByLine("input.txt");
   const dp: Score[][] = [];
   let startingPos: Pos = { i: 0, j: 0 };
   let endPos: Pos = { i: 0, j: 0 };
@@ -200,51 +199,72 @@ const part2 = async () => {
 
   fillScores(startingPos, dp, text);
   const maxValue = dp[endPos.i][endPos.j].value;
-  const answer = text.map((t) => Array.from(t));
-  dfs(
-    { coord: [startingPos.i, startingPos.j], dir: Direction.RIGHT },
-    text,
-    dp,
-    maxValue,
-    new Set<string>(),
-    answer,
-  );
-  answer.forEach((r) => console.log(r.join("")));
+  // given a max value,
+  // I now can get all the possible paths that are equal to the this value
+  const ways = getAllWays(startingPos, endPos, maxValue, text, dp);
+  const unique: Set<string> = new Set();
+  ways.forEach((w) => {
+    w.forEach((v) => {
+      unique.add(JSON.stringify(v));
+    });
+  });
+  console.log(unique.size);
+  // console.log(ways);
 };
 
-const dfs = (
-  node: Neighboor,
-  grid: string[],
-  scores: Score[][],
+const getAllWays = (
+  start: Pos,
+  end: Pos,
   maxValue: number,
-  seen: Set<string>,
-  answer: string[][],
+  grid: string[],
+  dp: Score[][], // max possible scores for each position, dir
 ) => {
-  console.log(node);
-  seen.add(`${node.coord[0]},${node.coord[1]}`);
-  if (scores[node.coord[0]][node.coord[1]].value > maxValue) {
-    answer[node.coord[0]][node.coord[1]] = "#";
-    return false;
+  let initialDirection = Direction.RIGHT;
+  const seen: Set<string> = new Set();
+  const q: [[Pos, Direction], number, Pos[]][] = [
+    [[start, initialDirection], 0, []],
+  ];
+
+  const ways: Pos[][] = [];
+  while (q.length) {
+    const [[node, dir], value, way] = q.shift()!;
+    console.log(q.length);
+    // found a good way
+    if (node.i === end.i && node.j === end.j && value === maxValue) {
+      ways.push([...way, node]);
+      continue;
+    }
+
+    // I reached a bad path
+    if (value >= maxValue) {
+      continue;
+    }
+
+    if (value > dp[node.i][node.j].value && dir === dp[node.i][node.j].dir) {
+      continue;
+    }
+
+    const neighbors = getNeighbors(node.i, node.j, grid).filter((n) => {
+      const key = JSON.stringify([n.coord, n.dir, way]);
+      return !seen.has(key);
+    });
+
+    neighbors.forEach((n) => {
+      const key = JSON.stringify([n.coord, n.dir, way]);
+      seen.add(key);
+
+      const newValue =
+        value + (n.dir === dir ? 1 : isOposite(n.dir, dir) ? 2001 : 1001);
+      q.push([
+        [{ i: n.coord[0], j: n.coord[1] }, n.dir],
+        newValue,
+        [...way, node],
+      ]);
+    });
   }
 
-  if (scores[node.coord[0]][node.coord[1]].value === maxValue) {
-    return true;
-  }
-  const neighbors = getNeighbors(node.coord[0], node.coord[1], grid).filter(
-    (n) => !seen.has(`${n.coord[0]},${n.coord[1]}`),
-  );
-  console.log(neighbors);
-
-  if (neighbors.length === 0) {
-    answer[node.coord[0]][node.coord[1]] = "#";
-    return false;
-  }
-
-  // if (neighbors.every((n) => !dfs(n, grid, scores, maxValue, seen, answer))) {
-  //   answer[node.coord[0]][node.coord[1]] = "#";
-  //   return false;
-  // }
-  return true;
+  return ways;
 };
-console.log(await part1());
-// console.log(await part2());
+
+// console.log(await part1());
+console.log(await part2());
