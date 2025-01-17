@@ -24,7 +24,7 @@ export const part1 = async () => {
   });
   const cheats = raceTrackWay.map((pos) => cheat(pos, 2, grid));
   const saved = cheats
-    .map((c, i) => timeSaved(c, raceTrackWay[i], distances, 2))
+    .map((c, i) => timeSaved(c, raceTrackWay[i], distances))
     .flat()
     .filter((n) => n > 0);
 
@@ -32,14 +32,13 @@ export const part1 = async () => {
 };
 
 const timeSaved = (
-  finalPos: number[][],
+  finalPos: [number[], number][],
   originalPos: number[],
   distances: Map<string, number>,
-  cheatSteps: number,
 ) => {
   return finalPos.map((p) => {
-    const original = distances.get(`${originalPos}`)! + cheatSteps;
-    const saved = distances.get(`${p}`)!;
+    const original = distances.get(`${originalPos}`)! + p[1];
+    const saved = distances.get(`${p[0]}`)!;
     return saved - original;
   });
 };
@@ -52,7 +51,7 @@ const bfs = (start: number[], end: number[], grid: string[][]) => {
   while (queue.length) {
     const [node, dist] = queue.shift()!;
     if (node[0] === end[0] && node[1] === end[1]) {
-      return results;
+      return [...results, end];
     }
 
     if (seen.has(`${node[0]},${node[1]}`)) {
@@ -75,30 +74,34 @@ const bfs = (start: number[], end: number[], grid: string[][]) => {
 
 const cheat = (start: number[], cheatSteps: number, grid: string[][]) => {
   // given a start position and how many cheat steps, returns an array of all possible end positions
-  let q = [start];
+  let q: number[][] = [start];
+  let dist = 0;
+  const results: [number[], number][] = [];
   const seen: Set<string> = new Set();
-  while (cheatSteps > 1) {
-    q.forEach((n) => {
-      seen.add(`${n[0]},${n[1]}`);
-    });
-    q = q
+  seen.add(JSON.stringify(start));
+  while (dist < cheatSteps) {
+    dist++;
+    const currentNodes = q;
+    const newNodes = currentNodes
       .map((n) =>
-        getNeighbors(n[0], n[1])
-          .filter((node) => getWall(node[0], node[1], grid))
-          .filter((ne) => !seen.has(`${ne[0]},${ne[1]}`)),
+        getNeighbors(n[0], n[1]).filter((nn) =>
+          isNode(nn[0], nn[1], grid, true),
+        ),
       )
+      .filter((nnn) => !seen.has(JSON.stringify(nnn)))
       .flat();
-    cheatSteps--;
+
+    newNodes.forEach((n) => {
+      seen.add(JSON.stringify(n));
+      if (isNode(n[0], n[1], grid, false)) {
+        results.push([n, dist]);
+      }
+    });
+
+    q = newNodes;
   }
 
-  return q
-    .map((n) =>
-      getNeighbors(n[0], n[1]).filter(
-        (node) =>
-          isNode(node[0], node[1], grid) && !seen.has(`${node[0]},${node[1]}`),
-      ),
-    )
-    .flat();
+  return removeDuplicates(results, (item) => JSON.stringify(item));
 };
 
 const isNode = (
@@ -120,17 +123,6 @@ const isNode = (
     return false;
   }
 };
-const getWall = (i: number, j: number, grid: string[][]) => {
-  try {
-    const el = grid[i][j];
-    if (el === undefined) {
-      return false;
-    }
-    return el === "#";
-  } catch (e) {
-    return false;
-  }
-};
 
 const getNeighbors = (i: number, j: number): number[][] => {
   return [
@@ -141,8 +133,33 @@ const getNeighbors = (i: number, j: number): number[][] => {
   ];
 };
 
-export const part2 = async () => {
-  const input: string[] = await getInputLineByLine("example.txt");
+const findPointsWithinDistance = (
+  start: number[],
+  distance: number,
+  grid: string[][],
+): [number[], number][] => {
+  const [startX, startY] = start;
+  const result: [number[], number][] = [];
+  const rows = grid.length;
+  const cols = grid[0]?.length || 0;
+
+  for (let dx = -distance; dx <= distance; dx++) {
+    const maxDy = distance - Math.abs(dx);
+    for (let dy = -maxDy; dy <= maxDy; dy++) {
+      const x = startX + dx;
+      const y = startY + dy;
+
+      if (x >= 0 && x < rows && y >= 0 && y < cols && grid[x][y] !== "#") {
+        result.push([[x, y], Math.abs(dx) + Math.abs(dy)]);
+      }
+    }
+  }
+
+  return result;
+};
+
+const part2b = async () => {
+  const input: string[] = await getInputLineByLine("input.txt");
   const grid = input.map((l) => Array.from(l));
   const startingPos: number[] = [];
   const endPos: number[] = [];
@@ -163,63 +180,18 @@ export const part2 = async () => {
   raceTrackWay.forEach((pos, index) => {
     distances.set(`${pos}`, index);
   });
-  const possibleEnds = raceTrackWay.map((n) => getPossibleEnds(n, grid));
-  const times = possibleEnds
-    .map((end, i) => calcTime(end, raceTrackWay[i], distances))
-    .flat();
-  // should be 285
-  console.log(times.filter((t) => t > 50).length);
 
-  // given all the points in the path
-  // find all the reacheble point within 20s and their distance
-  // calculate how many time we saved for each of them
-};
-
-const calcTime = (
-  points: [number[], number][],
-  originalPos: number[],
-  distances: Map<string, number>,
-) => {
-  return points
-    .map((p) => {
-      const [node, dist] = p;
-      const originalTime = distances.get(`${originalPos}`)! + dist;
-      const newTime = distances.get(`${node}`)!;
-      return newTime - originalTime;
-    })
-    .filter((t) => t > 0);
-};
-
-const getPossibleEnds = (start: number[], grid: string[][]) => {
-  const seen: Set<string> = new Set();
-  const q: [number[], number][] = [[start, 0]];
-  const results: [number[], number][] = [];
-  while (q.length) {
-    const [node, dist] = q.shift()!;
-    if (dist > 20) {
-      continue;
-    }
-
-    if (isNode(node[0], node[1], grid)) {
-      results.push([node, dist]);
-    }
-    if (seen.has(`${node}`)) {
-      continue;
-    }
-
-    seen.add(`${node}`);
-    const nei = getNeighbors(node[0], node[1]).filter((n) =>
-      isNode(n[0], n[1], grid, true),
-    );
-
-    q.push(...nei.map((n) => [n, dist + 1] as [number[], number]));
-  }
-
-  return removeDuplicates(
-    results.filter(([n, _]) => isNode(n[0], n[1], grid, false)),
-    (item) => JSON.stringify(item[0]),
+  const cheats = raceTrackWay.map((pos) =>
+    findPointsWithinDistance(pos, 20, grid),
   );
+  const saved = cheats
+    .map((c, i) => timeSaved(c, raceTrackWay[i], distances))
+    .flat()
+    .filter((n) => n > 0);
+
+  return saved.filter((t) => t >= 100).length;
 };
+
 function removeDuplicates<T>(array: T[], keyFn: (item: T) => string): T[] {
   const seen = new Set<string>();
   return array.filter((item) => {
@@ -232,5 +204,5 @@ function removeDuplicates<T>(array: T[], keyFn: (item: T) => string): T[] {
   });
 }
 
-// console.log(await part1());
-console.log(await part2());
+// console.log(await part1()); // 1365
+console.log(await part2b());
